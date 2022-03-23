@@ -659,6 +659,85 @@ impl<'writer, 'config> Renderer<'writer, 'config> {
         Ok(())
     }
 
+    // let a: [bool; N] = [true, false];
+    //             +++ insert a size here
+    pub fn render_suggestion_add(
+        &mut self,
+        outer_padding: usize,
+        source: &str,
+        addition: (usize, &str),
+        message: &str,
+    ) -> Result<(), Error> {
+        // Trim trailing newlines, linefeeds, and null chars from source, if they exist.
+        let source = source.trim_end_matches(['\n', '\r', '\0'].as_ref());
+
+        //TODO line number?
+        self.outer_gutter(outer_padding)?;
+        self.border_left()?;
+        write!(self, " ")?;
+
+        // Check that addition is inserted after a valid code point.
+        if source.get(..addition.0).is_none() {
+            return Err(Error::InvalidCharBoundary { given: addition.0 });
+        }
+
+        // Write source before addition.
+        // Safety (string indexing): char boundary just checked.
+        for (metrics, ch) in self.char_metrics(source[..addition.0].char_indices()) {
+            match ch {
+                '\t' => (0..metrics.unicode_width).try_for_each(|_| write!(self, " "))?,
+                _ => write!(self, "{}", ch)?,
+            }
+        }
+
+        // Write addition.
+        self.set_color(&self.styles().suggest_add)?;
+        for (metrics, ch) in self.char_metrics(addition.1.char_indices()) {
+            match ch {
+                '\t' => (0..metrics.unicode_width).try_for_each(|_| write!(self, " "))?,
+                _ => write!(self, "{}", ch)?,
+            }
+        }
+        self.reset()?;
+
+        // Write rest of source
+        // Safety (string indexing): char boundary checked when writing source before
+        //                           addition
+        for (metrics, ch) in self.char_metrics(source[addition.0..].char_indices()) {
+            match ch {
+                '\t' => (0..metrics.unicode_width).try_for_each(|_| write!(self, " "))?,
+                _ => write!(self, "{}", ch)?,
+            }
+        }
+
+        writeln!(self)?;
+        self.outer_gutter(outer_padding)?;
+        self.border_left()?;
+        write!(self, " ")?;
+
+        // Write spaces up to (not including) `addition.0`.
+        for (metrics, ch) in self.char_metrics(source[0..addition.0].char_indices()) {
+            match ch {
+                '\t' => (0..metrics.unicode_width).try_for_each(|_| write!(self, " "))?,
+                _ => write!(self, " ")?,
+            }
+        }
+
+        // Write `+` for `addition.1` cells.
+        self.set_color(&self.styles().suggest_add)?;
+        for (metrics, ch) in self.char_metrics(addition.1.char_indices()) {
+            match ch {
+                '\t' => (0..metrics.unicode_width).try_for_each(|_| write!(self, "+"))?,
+                _ => write!(self, "+")?,
+            }
+        }
+
+        writeln!(self, " {}", message)?;
+        self.reset()?;
+
+        Ok(())
+    }
+
     /// Adds tab-stop aware unicode-width computations to an iterator over
     /// character indices. Assumes that the character indices begin at the start
     /// of the line.
