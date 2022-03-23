@@ -659,6 +659,16 @@ impl<'writer, 'config> Renderer<'writer, 'config> {
         Ok(())
     }
 
+    fn render_using_metrics(&mut self, s: &str) -> Result<(), Error> {
+        for (metrics, ch) in self.char_metrics(s.char_indices()) {
+            match ch {
+                '\t' => (0..metrics.unicode_width).try_for_each(|_| write!(self, " "))?,
+                _ => write!(self, "{}", ch)?,
+            }
+        }
+        Ok(())
+    }
+
     // let a: [bool; N] = [true, false];
     //             +++ insert a size here
     pub fn render_suggestion_add(
@@ -683,34 +693,19 @@ impl<'writer, 'config> Renderer<'writer, 'config> {
 
         // Write source before addition.
         // Safety (string indexing): char boundary just checked.
-        for (metrics, ch) in self.char_metrics(source[..addition.0].char_indices()) {
-            match ch {
-                '\t' => (0..metrics.unicode_width).try_for_each(|_| write!(self, " "))?,
-                _ => write!(self, "{}", ch)?,
-            }
-        }
+        self.render_using_metrics(&source[..addition.0])?;
 
         // Write addition.
         self.set_color(&self.styles().suggest_add)?;
-        for (metrics, ch) in self.char_metrics(addition.1.char_indices()) {
-            match ch {
-                '\t' => (0..metrics.unicode_width).try_for_each(|_| write!(self, " "))?,
-                _ => write!(self, "{}", ch)?,
-            }
-        }
+        self.render_using_metrics(addition.1)?;
         self.reset()?;
 
         // Write rest of source
         // Safety (string indexing): char boundary checked when writing source before
         //                           addition
-        for (metrics, ch) in self.char_metrics(source[addition.0..].char_indices()) {
-            match ch {
-                '\t' => (0..metrics.unicode_width).try_for_each(|_| write!(self, " "))?,
-                _ => write!(self, "{}", ch)?,
-            }
-        }
-
+        self.render_using_metrics(&source[addition.0..])?;
         writeln!(self)?;
+
         self.outer_gutter(outer_padding)?;
         self.border_left()?;
         write!(self, " ")?;
