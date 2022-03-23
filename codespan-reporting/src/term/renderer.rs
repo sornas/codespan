@@ -674,6 +674,7 @@ impl<'writer, 'config> Renderer<'writer, 'config> {
     pub fn render_suggestion_add(
         &mut self,
         outer_padding: usize,
+        line_number: usize,
         source: &str,
         addition: (usize, &str),
         message: &str,
@@ -681,8 +682,7 @@ impl<'writer, 'config> Renderer<'writer, 'config> {
         // Trim trailing newlines, linefeeds, and null chars from source, if they exist.
         let source = source.trim_end_matches(['\n', '\r', '\0'].as_ref());
 
-        //TODO line number?
-        self.outer_gutter(outer_padding)?;
+        self.outer_gutter_number(line_number, outer_padding)?;
         self.border_left()?;
         write!(self, " ")?;
 

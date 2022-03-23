@@ -438,7 +438,6 @@ where
         //         let a: [bool; N] = [true, false];
         //                       + replace size here
         // ```
-        // TODO: probably want line number here
         for suggestion in &self.diagnostic.suggestions {
             let Suggestion { parts, message } = suggestion;
             assert!(parts.len() == 1); //TODO
@@ -447,13 +446,14 @@ where
             let file_id = *file_id;
 
             let start_line_index = files.line_index(file_id, range.start)?;
-            let _start_line_number = files.line_number(file_id, start_line_index)?;
+            let start_line_number = files.line_number(file_id, start_line_index)?;
             let start_line_range = files.line_range(file_id, start_line_index)?;
             let end_line_index = files.line_index(file_id, range.end)?;
             let _end_line_number = files.line_number(file_id, end_line_index)?;
-            let _end_line_range = files.line_range(file_id, end_line_index)?;
+            let end_line_range = files.line_range(file_id, end_line_index)?;
 
             let replacement_start = range.start - start_line_range.start;
+            let _replacement_end = range.end - end_line_range.start;
 
             assert!(start_line_index == end_line_index); //TODO
 
@@ -464,7 +464,7 @@ where
                 // addition
                 let addition = (replacement_start, replacement.as_str());
 
-                renderer.render_suggestion_add(outer_padding, source, addition, message)?;
+                renderer.render_suggestion_add(outer_padding, start_line_number, source, addition, message)?;
             } else if replacement.is_empty() {
                 // deletion
                 todo!()
