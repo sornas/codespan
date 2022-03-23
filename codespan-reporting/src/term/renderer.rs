@@ -682,17 +682,18 @@ impl<'writer, 'config> Renderer<'writer, 'config> {
         // Trim trailing newlines, linefeeds, and null chars from source, if they exist.
         let source = source.trim_end_matches(['\n', '\r', '\0'].as_ref());
 
-        self.outer_gutter_number(line_number, outer_padding)?;
-        self.border_left()?;
-        write!(self, " ")?;
-
         // Check that addition is inserted after a valid code point.
         if source.get(..addition.0).is_none() {
             return Err(Error::InvalidCharBoundary { given: addition.0 });
         }
 
+        self.outer_gutter_number(line_number, outer_padding)?;
+        self.border_left()?;
+        write!(self, " ")?;
+
+        // Safety (string indexing): char boundary checked
+
         // Write source before addition.
-        // Safety (string indexing): char boundary just checked.
         self.render_using_metrics(&source[..addition.0])?;
 
         // Write addition.
@@ -701,8 +702,7 @@ impl<'writer, 'config> Renderer<'writer, 'config> {
         self.reset()?;
 
         // Write rest of source
-        // Safety (string indexing): char boundary checked when writing source before
-        //                           addition
+        // Safety (string indexing): char boundary just checked.
         self.render_using_metrics(&source[addition.0..])?;
         writeln!(self)?;
 
@@ -711,7 +711,7 @@ impl<'writer, 'config> Renderer<'writer, 'config> {
         write!(self, " ")?;
 
         // Write spaces up to (not including) `addition.0`.
-        for (metrics, ch) in self.char_metrics(source[0..addition.0].char_indices()) {
+        for (metrics, ch) in self.char_metrics(source[..addition.0].char_indices()) {
             match ch {
                 '\t' => (0..metrics.unicode_width).try_for_each(|_| write!(self, " "))?,
                 _ => write!(self, " ")?,
@@ -724,6 +724,70 @@ impl<'writer, 'config> Renderer<'writer, 'config> {
             match ch {
                 '\t' => (0..metrics.unicode_width).try_for_each(|_| write!(self, "+"))?,
                 _ => write!(self, "+")?,
+            }
+        }
+
+        writeln!(self, " {}", message)?;
+        self.reset()?;
+
+        Ok(())
+    }
+
+    //     inst e()
+    //     ---- consider removing this
+    pub fn render_suggestion_remove(
+        &mut self,
+        outer_padding: usize,
+        lines: &Range<usize>,
+        source: &str,
+        remove: &Range<usize>,
+        message: &str,
+    ) -> Result<(), Error> {
+        // print source and underline what is to be removed
+        assert!(lines.start == lines.end);
+
+        // Trim trailing newlines, linefeeds, and null chars from source, if they exist.
+        let source = source.trim_end_matches(['\n', '\r', '\0'].as_ref());
+
+        // Check that removal is specified on valid code points.
+        if source.get(..remove.start).is_none() {
+            return Err(Error::InvalidCharBoundary { given: remove.start });
+        }
+        if source.get(remove.end..).is_none() {
+            return Err(Error::InvalidCharBoundary { given: remove.end });
+        }
+
+        self.outer_gutter_number(lines.start, outer_padding)?;
+        self.border_left()?;
+        write!(self, " ")?;
+
+        // Safety (string indexing): char boundaries checked.
+
+        self.render_using_metrics(&source[..remove.start])?;
+
+        self.set_color(&self.styles().suggest_remove)?;
+        self.render_using_metrics(&source[remove.clone()])?;
+        self.reset()?;
+
+        self.render_using_metrics(&source[remove.end..])?;
+        writeln!(self)?;
+
+        self.outer_gutter(outer_padding)?;
+        self.border_left()?;
+        write!(self, " ")?;
+
+        for (metrics, ch) in self.char_metrics(source[..remove.start].char_indices()) {
+            match ch {
+                '\t' => (0..metrics.unicode_width).try_for_each(|_| write!(self, " "))?,
+                _ => write!(self, " ")?,
+            }
+        }
+
+        self.set_color(&self.styles().suggest_remove)?;
+        for (metrics, ch) in self.char_metrics(source[remove.clone()].char_indices()) {
+            match ch {
+                '\t' => (0..metrics.unicode_width).try_for_each(|_| write!(self, "-"))?,
+                _ => write!(self, "-")?,
             }
         }
 

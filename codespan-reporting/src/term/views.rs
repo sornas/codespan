@@ -443,32 +443,34 @@ where
 
             let file_id = *file_id;
 
+            // offset from beginning of the file
             let start_line_index = files.line_index(file_id, range.start)?;
             let start_line_number = files.line_number(file_id, start_line_index)?;
             let start_line_range = files.line_range(file_id, start_line_index)?;
             let end_line_index = files.line_index(file_id, range.end)?;
-            let _end_line_number = files.line_number(file_id, end_line_index)?;
+            let end_line_number = files.line_number(file_id, end_line_index)?;
             let end_line_range = files.line_range(file_id, end_line_index)?;
 
+            let line_range = start_line_number..end_line_number;
+
+            // offset from respective beginning of each line
             let replacement_start = range.start - start_line_range.start;
-            let _replacement_end = range.end - end_line_range.start;
+            let replacement_end = range.end - end_line_range.start;
 
-            assert!(start_line_index == end_line_index); //TODO
+            let replacement_range = replacement_start..replacement_end;
 
+            // get the lines that include the text to be replaced
             let source = files.source(file_id)?;
-            let source = &source.as_ref()[start_line_range];
+            let source = &source.as_ref()[start_line_range.start..end_line_range.end];
 
             if range.start == range.end {
-                // addition
                 let addition = (replacement_start, replacement.as_str());
-
                 renderer.render_suggestion_add(outer_padding, start_line_number, source, addition, message)?;
             } else if replacement.is_empty() {
-                // deletion
-                todo!()
+                renderer.render_suggestion_remove(outer_padding, &line_range, source, &replacement_range, message)?;
             } else {
-                // replacement
-                todo!()
+                let replacement = (replacement_start, replacement.as_str());
+                // renderer.render_suggestion_replace(outer_padding, &line_range, source, replacement, message)?;
             }
         }
 
