@@ -469,8 +469,8 @@ where
             } else if replacement.is_empty() {
                 renderer.render_suggestion_remove(outer_padding, &line_range, source, &replacement_range, message)?;
             } else {
-                let replacement = (replacement_start, replacement.as_str());
-                // renderer.render_suggestion_replace(outer_padding, &line_range, source, replacement, message)?;
+                let replacement = (&replacement_range, replacement.as_str());
+                renderer.render_suggestion_replace(outer_padding, &line_range, source, replacement, message)?;
             }
         }
 

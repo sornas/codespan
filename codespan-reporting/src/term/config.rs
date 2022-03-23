@@ -150,6 +150,10 @@ pub struct Styles {
     /// The style to use when rendering suggested removals.
     /// Defaults `fg:red`.
     pub suggest_remove: ColorSpec,
+
+    /// The style to use when rendering suggested replacement messages.
+    /// Defaults `fg:yellow`.
+    pub suggest_replace: ColorSpec,
 }
 
 impl Styles {
@@ -201,6 +205,7 @@ impl Styles {
 
             suggest_add: ColorSpec::new().set_fg(Some(Color::Green)).clone(),
             suggest_remove: ColorSpec::new().set_fg(Some(Color::Red)).clone(),
+            suggest_replace: ColorSpec::new().set_fg(Some(Color::Yellow)).clone(),
         }
     }
 }
