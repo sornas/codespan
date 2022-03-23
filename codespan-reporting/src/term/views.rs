@@ -1,6 +1,6 @@
 use std::ops::Range;
 
-use crate::diagnostic::{Diagnostic, LabelStyle, Suggestion, Substitution};
+use crate::diagnostic::{Diagnostic, LabelStyle, Suggestion};
 use crate::files::{Error, Files, Location};
 use crate::term::renderer::{Locus, MultiLabel, Renderer, SingleLabel};
 use crate::term::Config;
@@ -439,10 +439,8 @@ where
         //                       + replace size here
         // ```
         for suggestion in &self.diagnostic.suggestions {
-            let Suggestion { parts, message } = suggestion;
-            assert!(parts.len() == 1); //TODO
+            let Suggestion { file_id, range, replacement, message } = suggestion;
 
-            let Substitution { file_id, range, replacement } = &parts[0];
             let file_id = *file_id;
 
             let start_line_index = files.line_index(file_id, range.start)?;

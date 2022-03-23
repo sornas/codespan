@@ -94,15 +94,10 @@ impl<FileId> Label<FileId> {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Suggestion<FileId> {
-    pub parts: Vec<Substitution<FileId>>,
-    pub message: String,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Substitution<FileId> {
     pub file_id: FileId,
     pub range: Range<usize>,
     pub replacement: String,
+    pub message: String,
 }
 
 /// Represents a diagnostic message that can provide information like errors and
