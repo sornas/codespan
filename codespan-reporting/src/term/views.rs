@@ -433,17 +433,21 @@ where
         // Suggestions
         //
         // ```text
-        //         let a: [bool; abc] = [true, false];
-        //                       ---
-        //         let a: [bool; N] = [true, false];
-        //                       + replace size here
+        //         let a: [bool; abcN] = [true, false];
+        //                       ---+ replace size here
         // ```
+        // TODO: We currently skip suggestions that remove or insert multiple lines.
+        let mut skipped_suggestions = 0;
         for suggestion in &self.diagnostic.suggestions {
-            let Suggestion { file_id, range, replacement, message } = suggestion;
+            let Suggestion {
+                file_id,
+                range,
+                replacement,
+                message,
+            } = suggestion;
 
             let file_id = *file_id;
 
-            // offset from beginning of the file
             let start_line_index = files.line_index(file_id, range.start)?;
             let start_line_number = files.line_number(file_id, start_line_index)?;
             let start_line_range = files.line_range(file_id, start_line_index)?;
@@ -451,27 +455,61 @@ where
             let end_line_number = files.line_number(file_id, end_line_index)?;
             let end_line_range = files.line_range(file_id, end_line_index)?;
 
-            let line_range = start_line_number..end_line_number;
+            if start_line_number != end_line_number || replacement.contains("\n") {
+                skipped_suggestions += 1;
+                continue;
+            }
 
-            // offset from respective beginning of each line
-            let replacement_start = range.start - start_line_range.start;
-            let replacement_end = range.end - end_line_range.start;
+            let line_number_range = start_line_number..end_line_number;
 
-            let replacement_range = replacement_start..replacement_end;
-
-            // get the lines that include the text to be replaced
+            // Get the lines that include the text to be replaced.
             let source = files.source(file_id)?;
             let source = &source.as_ref()[start_line_range.start..end_line_range.end];
 
+            // Byte index in `source`.
+            // NOTE: Not necessarily the correct thinking for multiple lines.
+            let replacement_start = range.start - start_line_range.start;
+            let replacement_end = range.end - start_line_range.start;
+            let replacement_range = replacement_start..replacement_end;
+
             if range.start == range.end {
                 let addition = (replacement_start, replacement.as_str());
-                renderer.render_suggestion_add(outer_padding, start_line_number, source, addition, message)?;
+                renderer.render_suggestion_add(
+                    outer_padding,
+                    start_line_number,
+                    source,
+                    addition,
+                    message,
+                )?;
             } else if replacement.is_empty() {
-                renderer.render_suggestion_remove(outer_padding, &line_range, source, &replacement_range, message)?;
+                renderer.render_suggestion_remove(
+                    outer_padding,
+                    &line_number_range,
+                    source,
+                    &replacement_range,
+                    message,
+                )?;
             } else {
                 let replacement = (&replacement_range, replacement.as_str());
-                renderer.render_suggestion_replace(outer_padding, &line_range, source, replacement, message)?;
+                renderer.render_suggestion_replace(
+                    outer_padding,
+                    &line_number_range,
+                    source,
+                    replacement,
+                    message,
+                )?;
             }
+        }
+
+        if skipped_suggestions > 0 {
+            renderer.render_snippet_note(
+                outer_padding,
+                &format!(
+                    "Skipped {} multi-line suggestion{}",
+                    skipped_suggestions,
+                    if skipped_suggestions == 1 { "" } else { "s" }
+                ),
+            )?;
         }
 
         renderer.render_empty()

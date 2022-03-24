@@ -750,7 +750,9 @@ impl<'writer, 'config> Renderer<'writer, 'config> {
 
         // Check that removal is specified on valid code points.
         if source.get(..remove.start).is_none() {
-            return Err(Error::InvalidCharBoundary { given: remove.start });
+            return Err(Error::InvalidCharBoundary {
+                given: remove.start,
+            });
         }
         if source.get(remove.end..).is_none() {
             return Err(Error::InvalidCharBoundary { given: remove.end });
@@ -795,9 +797,8 @@ impl<'writer, 'config> Renderer<'writer, 'config> {
 
         Ok(())
     }
-
-    //     inst e()
-    //     ---- consider removing this
+    //  fnentity f() -> bool {
+    //  --++++++ Consider making the function an entity
     pub fn render_suggestion_replace(
         &mut self,
         outer_padding: usize,
@@ -813,10 +814,14 @@ impl<'writer, 'config> Renderer<'writer, 'config> {
 
         // Check that removal is specified on valid code points.
         if source.get(..replace.0.start).is_none() {
-            return Err(Error::InvalidCharBoundary { given: replace.0.start });
+            return Err(Error::InvalidCharBoundary {
+                given: replace.0.start,
+            });
         }
         if source.get(replace.0.end..).is_none() {
-            return Err(Error::InvalidCharBoundary { given: replace.0.end });
+            return Err(Error::InvalidCharBoundary {
+                given: replace.0.end,
+            });
         }
 
         self.outer_gutter_number(lines.start, outer_padding)?;

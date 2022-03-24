@@ -199,7 +199,10 @@ impl<FileId> Diagnostic<FileId> {
         self
     }
 
-    pub fn with_suggestions(mut self, mut suggestions: Vec<Suggestion<FileId>>) -> Diagnostic<FileId> {
+    pub fn with_suggestions(
+        mut self,
+        mut suggestions: Vec<Suggestion<FileId>>,
+    ) -> Diagnostic<FileId> {
         self.suggestions.append(&mut suggestions);
         self
     }
