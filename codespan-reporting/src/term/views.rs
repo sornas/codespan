@@ -472,40 +472,14 @@ where
             let replacement_end = range.end - start_line_range.start;
             let replacement_range = replacement_start..replacement_end;
 
-            if range.start == range.end {
-                let addition = (replacement_start, replacement.as_str());
-                renderer.render_suggestion_add(
-                    outer_padding,
-                    start_line_number,
-                    source,
-                    addition,
-                    message,
-                )?;
-            } else if replacement.is_empty() {
-                renderer.render_suggestion_remove(
-                    outer_padding,
-                    &line_number_range,
-                    source,
-                    &replacement_range,
-                    message,
-                )?;
-            } else {
-                let replacement = (&replacement_range, replacement.as_str());
-                renderer.render_suggestion_replace(
-                    outer_padding,
-                    &line_number_range,
-                    source,
-                    replacement,
-                    message,
-                )?;
-            }
+            renderer.render_suggestion(outer_padding, line_number_range, source, (replacement_range, replacement), message)?;
         }
 
         if skipped_suggestions > 0 {
             renderer.render_snippet_note(
                 outer_padding,
                 &format!(
-                    "Skipped {} multi-line suggestion{}",
+                    "(Note: skipped showing {} multi-line suggestion{})",
                     skipped_suggestions,
                     if skipped_suggestions == 1 { "" } else { "s" }
                 ),

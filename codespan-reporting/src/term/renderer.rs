@@ -669,142 +669,14 @@ impl<'writer, 'config> Renderer<'writer, 'config> {
         Ok(())
     }
 
-    // let a: [bool; N] = [true, false];
-    //             +++ insert a size here
-    pub fn render_suggestion_add(
-        &mut self,
-        outer_padding: usize,
-        line_number: usize,
-        source: &str,
-        addition: (usize, &str),
-        message: &str,
-    ) -> Result<(), Error> {
-        // Trim trailing newlines, linefeeds, and null chars from source, if they exist.
-        let source = source.trim_end_matches(['\n', '\r', '\0'].as_ref());
-
-        // Check that addition is inserted after a valid code point.
-        if source.get(..addition.0).is_none() {
-            return Err(Error::InvalidCharBoundary { given: addition.0 });
-        }
-
-        self.outer_gutter_number(line_number, outer_padding)?;
-        self.border_left()?;
-        write!(self, " ")?;
-
-        // Safety (string indexing): char boundary checked
-
-        // Write source before addition.
-        self.render_using_metrics(&source[..addition.0])?;
-
-        // Write addition.
-        self.set_color(&self.styles().suggest_add)?;
-        self.render_using_metrics(addition.1)?;
-        self.reset()?;
-
-        // Write rest of source
-        // Safety (string indexing): char boundary just checked.
-        self.render_using_metrics(&source[addition.0..])?;
-        writeln!(self)?;
-
-        self.outer_gutter(outer_padding)?;
-        self.border_left()?;
-        write!(self, " ")?;
-
-        // Write spaces up to (not including) `addition.0`.
-        for (metrics, ch) in self.char_metrics(source[..addition.0].char_indices()) {
-            match ch {
-                '\t' => (0..metrics.unicode_width).try_for_each(|_| write!(self, " "))?,
-                _ => write!(self, " ")?,
-            }
-        }
-
-        // Write `+` for `addition.1` cells.
-        self.set_color(&self.styles().suggest_add)?;
-        for (metrics, ch) in self.char_metrics(addition.1.char_indices()) {
-            match ch {
-                '\t' => (0..metrics.unicode_width).try_for_each(|_| write!(self, "+"))?,
-                _ => write!(self, "+")?,
-            }
-        }
-
-        writeln!(self, " {}", message)?;
-        self.reset()?;
-
-        Ok(())
-    }
-
-    //     inst e()
-    //     ---- consider removing this
-    pub fn render_suggestion_remove(
-        &mut self,
-        outer_padding: usize,
-        lines: &Range<usize>,
-        source: &str,
-        remove: &Range<usize>,
-        message: &str,
-    ) -> Result<(), Error> {
-        assert!(lines.start == lines.end);
-
-        // Trim trailing newlines, linefeeds, and null chars from source, if they exist.
-        let source = source.trim_end_matches(['\n', '\r', '\0'].as_ref());
-
-        // Check that removal is specified on valid code points.
-        if source.get(..remove.start).is_none() {
-            return Err(Error::InvalidCharBoundary {
-                given: remove.start,
-            });
-        }
-        if source.get(remove.end..).is_none() {
-            return Err(Error::InvalidCharBoundary { given: remove.end });
-        }
-
-        self.outer_gutter_number(lines.start, outer_padding)?;
-        self.border_left()?;
-        write!(self, " ")?;
-
-        // Safety (string indexing): char boundaries checked.
-
-        self.render_using_metrics(&source[..remove.start])?;
-
-        self.set_color(&self.styles().suggest_remove)?;
-        self.render_using_metrics(&source[remove.clone()])?;
-        self.reset()?;
-
-        self.render_using_metrics(&source[remove.end..])?;
-        writeln!(self)?;
-
-        self.outer_gutter(outer_padding)?;
-        self.border_left()?;
-        write!(self, " ")?;
-
-        for (metrics, ch) in self.char_metrics(source[..remove.start].char_indices()) {
-            match ch {
-                '\t' => (0..metrics.unicode_width).try_for_each(|_| write!(self, " "))?,
-                _ => write!(self, " ")?,
-            }
-        }
-
-        self.set_color(&self.styles().suggest_remove)?;
-        for (metrics, ch) in self.char_metrics(source[remove.clone()].char_indices()) {
-            match ch {
-                '\t' => (0..metrics.unicode_width).try_for_each(|_| write!(self, "-"))?,
-                _ => write!(self, "-")?,
-            }
-        }
-
-        writeln!(self, " {}", message)?;
-        self.reset()?;
-
-        Ok(())
-    }
     //  fnentity f() -> bool {
     //  --++++++ Consider making the function an entity
-    pub fn render_suggestion_replace(
+    pub fn render_suggestion(
         &mut self,
         outer_padding: usize,
-        lines: &Range<usize>,
+        lines: Range<usize>,
         source: &str,
-        replace: (&Range<usize>, &str),
+        replace: (Range<usize>, &str),
         message: &str,
     ) -> Result<(), Error> {
         assert!(lines.start == lines.end);
@@ -813,9 +685,23 @@ impl<'writer, 'config> Renderer<'writer, 'config> {
         let source = source.trim_end_matches(['\n', '\r', '\0'].as_ref());
 
         // Check that removal is specified on valid code points.
+        // NOTE: Some of these might not need to be checked. More specifically,
+        //       can an `s: &str` be split at a byte index `b: usize` such that
+        //       only one of `s[..b]` and `s[b..] is valid? Or will they both
+        //       either always be valid or always invalid?
         if source.get(..replace.0.start).is_none() {
             return Err(Error::InvalidCharBoundary {
                 given: replace.0.start,
+            });
+        }
+        if source.get(replace.0.start..).is_none() {
+            return Err(Error::InvalidCharBoundary {
+                given: replace.0.start,
+            });
+        }
+        if source.get(..replace.0.end).is_none() {
+            return Err(Error::InvalidCharBoundary {
+                given: replace.0.end,
             });
         }
         if source.get(replace.0.end..).is_none() {
@@ -869,7 +755,16 @@ impl<'writer, 'config> Renderer<'writer, 'config> {
             }
         }
 
-        self.set_color(&self.styles().suggest_replace)?;
+        let message_color = {
+            if replace.0.start == replace.0.end {
+                &self.styles().suggest_add
+            } else if replace.1.is_empty() {
+                &self.styles().suggest_remove
+            } else {
+                &self.styles().suggest_replace
+            }
+        };
+        self.set_color(message_color)?;
         writeln!(self, " {}", message)?;
         self.reset()?;
 
