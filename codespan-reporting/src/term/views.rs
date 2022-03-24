@@ -472,7 +472,13 @@ where
             let replacement_end = range.end - start_line_range.start;
             let replacement_range = replacement_start..replacement_end;
 
-            renderer.render_suggestion(outer_padding, line_number_range, source, (replacement_range, replacement), message)?;
+            renderer.render_suggestion(
+                outer_padding,
+                line_number_range,
+                source,
+                (replacement_range, replacement),
+                message,
+            )?;
         }
 
         if skipped_suggestions > 0 {

@@ -684,55 +684,49 @@ impl<'writer, 'config> Renderer<'writer, 'config> {
         // Trim trailing newlines, linefeeds, and null chars from source, if they exist.
         let source = source.trim_end_matches(['\n', '\r', '\0'].as_ref());
 
-        // Check that removal is specified on valid code points.
-        // NOTE: Some of these might not need to be checked. More specifically,
-        //       can an `s: &str` be split at a byte index `b: usize` such that
-        //       only one of `s[..b]` and `s[b..] is valid? Or will they both
-        //       either always be valid or always invalid?
-        if source.get(..replace.0.start).is_none() {
-            return Err(Error::InvalidCharBoundary {
-                given: replace.0.start,
-            });
-        }
-        if source.get(replace.0.start..).is_none() {
-            return Err(Error::InvalidCharBoundary {
-                given: replace.0.start,
-            });
-        }
-        if source.get(..replace.0.end).is_none() {
-            return Err(Error::InvalidCharBoundary {
-                given: replace.0.end,
-            });
-        }
-        if source.get(replace.0.end..).is_none() {
-            return Err(Error::InvalidCharBoundary {
-                given: replace.0.end,
-            });
-        }
-
         self.outer_gutter_number(lines.start, outer_padding)?;
         self.border_left()?;
         write!(self, " ")?;
 
-        // Safety (string indexing): char boundaries checked.
-
-        self.render_using_metrics(&source[..replace.0.start])?;
+        self.render_using_metrics(source.get(..replace.0.start).ok_or(
+            Error::InvalidCharBoundary {
+                given: replace.0.start,
+            },
+        )?)?;
 
         self.set_color(&self.styles().suggest_remove)?;
-        self.render_using_metrics(&source[replace.0.clone()])?;
+        self.render_using_metrics(source.get(replace.0.clone()).ok_or_else(|| {
+            let faulty = if source.get(replace.0.start..).is_none() {
+                replace.0.start
+            } else {
+                replace.0.end
+            };
+            Error::InvalidCharBoundary { given: faulty }
+        })?)?;
 
         self.set_color(&self.styles().suggest_add)?;
         self.render_using_metrics(replace.1)?;
 
         self.reset()?;
-        self.render_using_metrics(&source[replace.0.end..])?;
+        self.render_using_metrics(source.get(replace.0.end..).ok_or(
+            Error::InvalidCharBoundary {
+                given: replace.0.end,
+            },
+        )?)?;
         writeln!(self)?;
 
         self.outer_gutter(outer_padding)?;
         self.border_left()?;
         write!(self, " ")?;
 
-        for (metrics, ch) in self.char_metrics(source[..replace.0.start].char_indices()) {
+        for (metrics, ch) in self.char_metrics(
+            source
+                .get(..replace.0.start)
+                .ok_or(Error::InvalidCharBoundary {
+                    given: replace.0.start,
+                })?
+                .char_indices(),
+        ) {
             match ch {
                 '\t' => (0..metrics.unicode_width).try_for_each(|_| write!(self, " "))?,
                 _ => write!(self, " ")?,
@@ -740,7 +734,19 @@ impl<'writer, 'config> Renderer<'writer, 'config> {
         }
 
         self.set_color(&self.styles().suggest_remove)?;
-        for (metrics, ch) in self.char_metrics(source[replace.0.clone()].char_indices()) {
+        for (metrics, ch) in self.char_metrics(
+            source
+                .get(replace.0.clone())
+                .ok_or_else(|| {
+                    let faulty = if source.get(replace.0.start..).is_none() {
+                        replace.0.start
+                    } else {
+                        replace.0.end
+                    };
+                    Error::InvalidCharBoundary { given: faulty }
+                })?
+                .char_indices(),
+        ) {
             match ch {
                 '\t' => (0..metrics.unicode_width).try_for_each(|_| write!(self, "-"))?,
                 _ => write!(self, "-")?,
