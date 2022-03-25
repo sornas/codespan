@@ -142,6 +142,18 @@ pub struct Styles {
     /// The style to use when rendering the note bullets.
     /// Defaults `fg:blue` (or `fg:cyan` on windows).
     pub note_bullet: ColorSpec,
+
+    /// The style to use when rendering suggested additions.
+    /// Defaults `fg:green`.
+    pub suggest_add: ColorSpec,
+
+    /// The style to use when rendering suggested removals.
+    /// Defaults `fg:red`.
+    pub suggest_remove: ColorSpec,
+
+    /// The style to use when rendering suggested replacement messages.
+    /// Defaults `fg:yellow`.
+    pub suggest_replace: ColorSpec,
 }
 
 impl Styles {
@@ -190,6 +202,10 @@ impl Styles {
             line_number: ColorSpec::new().set_fg(Some(blue)).clone(),
             source_border: ColorSpec::new().set_fg(Some(blue)).clone(),
             note_bullet: ColorSpec::new().set_fg(Some(blue)).clone(),
+
+            suggest_add: ColorSpec::new().set_fg(Some(Color::Green)).clone(),
+            suggest_remove: ColorSpec::new().set_fg(Some(Color::Red)).clone(),
+            suggest_replace: ColorSpec::new().set_fg(Some(Color::Yellow)).clone(),
         }
     }
 }

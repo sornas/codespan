@@ -1,4 +1,4 @@
-use codespan_reporting::diagnostic::{Diagnostic, Label};
+use codespan_reporting::diagnostic::{Diagnostic, Label, Suggestion};
 use codespan_reporting::files::{SimpleFile, SimpleFiles};
 use codespan_reporting::term::{termcolor::Color, Chars, Config, DisplayStyle, Styles};
 
@@ -1105,4 +1105,133 @@ mod surrounding_lines {
     }
 
     test_emit!(rich_no_color);
+}
+
+mod suggestion_add {
+    use super::*;
+
+    lazy_static::lazy_static! {
+        static ref TEST_DATA: TestData<'static, SimpleFiles<&'static str, String>> = {
+            let mut files = SimpleFiles::new();
+
+            let file_id = files.add(
+                "suggestionAdd.fun",
+                unindent::unindent(
+                    r#"
+                    fn foo(_: &i32) {}
+
+                    fn main() {
+                        foo(123);
+                    }"#,
+                ),
+            );
+
+            let diagnostics = vec![
+                Diagnostic::error()
+                    .with_message("mismatched types")
+                    .with_code("E0308")
+                    .with_labels(vec![
+                        Label::primary(file_id, 40..43).with_message("expected `&i32`, found `{integer}`")
+                    ])
+                    .with_suggestions(vec![
+                        Suggestion {
+                            file_id,
+                            range: 40..40,
+                            replacement: format!("&"),
+                            message: format!("consider borrowing here"),
+                        },
+                    ])
+            ];
+
+            TestData { files, diagnostics }
+        };
+    }
+
+    test_emit!(rich_no_color);
+    test_emit!(rich_color);
+}
+
+mod suggestion_remove {
+    use super::*;
+
+    lazy_static::lazy_static! {
+        static ref TEST_DATA: TestData<'static, SimpleFiles<&'static str, String>> = {
+            let mut files = SimpleFiles::new();
+
+            let file_id = files.add(
+                "suggestionRemove.fun",
+                unindent::unindent(
+                    r#"
+                    fn foo(n: i32) {}
+
+                    fn main() {
+                        foo(&123);
+                    }"#,
+                ),
+            );
+
+            let diagnostics = vec![
+                Diagnostic::error()
+                    .with_message("mismatched types")
+                    .with_code("E0308")
+                    .with_labels(vec![
+                        Label::primary(file_id, 39..43).with_message("expected `i32`, found `&{integer}`")
+                    ])
+                    .with_suggestions(vec![
+                        Suggestion {
+                            file_id,
+                            range: 39..40,
+                            replacement: format!(""),
+                            message: format!("consider removing the borrow"),
+                        },
+                    ])
+            ];
+
+            TestData { files, diagnostics }
+        };
+    }
+
+    test_emit!(rich_no_color);
+    test_emit!(rich_color);
+}
+
+mod suggestion_replace {
+    use super::*;
+
+    lazy_static::lazy_static! {
+        static ref TEST_DATA: TestData<'static, SimpleFiles<&'static str, String>> = {
+            let mut files = SimpleFiles::new();
+
+            let file_id = files.add(
+                "suggestionReplace.fun",
+                unindent::unindent(
+                    r#"
+                    fn _foo(_: &Vec<u32>) {}
+
+                    fn main() {}"#,
+                ),
+            );
+
+            let diagnostics = vec![
+                Diagnostic::warning()
+                    .with_message("writing `&Vec<_>` instead of `&[_]` involves one more reference and cannot be used with non-Vec-based slices")
+                    .with_labels(vec![
+                        Label::primary(file_id, 11..20).with_message("this type")
+                    ])
+                    .with_suggestions(vec![
+                        Suggestion {
+                            file_id,
+                            range: 11..20,
+                            replacement: format!("&[u32]"),
+                            message: format!("help: change this to: `&[u32]`"),
+                        },
+                    ])
+            ];
+
+            TestData { files, diagnostics }
+        };
+    }
+
+    test_emit!(rich_no_color);
+    test_emit!(rich_color);
 }

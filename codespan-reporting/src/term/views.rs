@@ -1,6 +1,6 @@
 use std::ops::Range;
 
-use crate::diagnostic::{Diagnostic, LabelStyle};
+use crate::diagnostic::{Diagnostic, LabelStyle, Suggestion};
 use crate::files::{Error, Files, Location};
 use crate::term::renderer::{Locus, MultiLabel, Renderer, SingleLabel};
 use crate::term::Config;
@@ -429,6 +429,69 @@ where
         for note in &self.diagnostic.notes {
             renderer.render_snippet_note(outer_padding, note)?;
         }
+
+        // Suggestions
+        //
+        // ```text
+        //         let a: [bool; abcN] = [true, false];
+        //                       ---+ replace size here
+        // ```
+        // TODO: We currently skip suggestions that remove or insert multiple lines.
+        let mut skipped_suggestions = 0;
+        for suggestion in &self.diagnostic.suggestions {
+            let Suggestion {
+                file_id,
+                range,
+                replacement,
+                message,
+            } = suggestion;
+
+            let file_id = *file_id;
+
+            let start_line_index = files.line_index(file_id, range.start)?;
+            let start_line_number = files.line_number(file_id, start_line_index)?;
+            let start_line_range = files.line_range(file_id, start_line_index)?;
+            let end_line_index = files.line_index(file_id, range.end)?;
+            let end_line_number = files.line_number(file_id, end_line_index)?;
+            let end_line_range = files.line_range(file_id, end_line_index)?;
+
+            if start_line_number != end_line_number || replacement.contains("\n") {
+                skipped_suggestions += 1;
+                continue;
+            }
+
+            let line_number_range = start_line_number..end_line_number;
+
+            // Get the lines that include the text to be replaced.
+            let source = files.source(file_id)?;
+            let source = &source.as_ref()[start_line_range.start..end_line_range.end];
+
+            // Byte index in `source`.
+            // NOTE: Not necessarily the correct thinking for multiple lines.
+            let replacement_start = range.start - start_line_range.start;
+            let replacement_end = range.end - start_line_range.start;
+            let replacement_range = replacement_start..replacement_end;
+
+            renderer.render_suggestion(
+                outer_padding,
+                line_number_range,
+                source,
+                (replacement_range, replacement),
+                message,
+            )?;
+        }
+
+        if skipped_suggestions > 0 {
+            renderer.render_snippet_note(
+                outer_padding,
+                &format!(
+                    "(Note: skipped showing {} multi-line suggestion{})",
+                    skipped_suggestions,
+                    if skipped_suggestions == 1 { "" } else { "s" }
+                ),
+            )?;
+        }
+
         renderer.render_empty()
     }
 }
