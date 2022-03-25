@@ -92,6 +92,14 @@ impl<FileId> Label<FileId> {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Suggestion<FileId> {
+    pub file_id: FileId,
+    pub range: Range<usize>,
+    pub replacement: String,
+    pub message: String,
+}
+
 /// Represents a diagnostic message that can provide information like errors and
 /// warnings to the user.
 ///
@@ -116,6 +124,7 @@ pub struct Diagnostic<FileId> {
     /// Notes that are associated with the primary cause of the diagnostic.
     /// These can include line breaks for improved formatting.
     pub notes: Vec<String>,
+    pub suggestions: Vec<Suggestion<FileId>>,
 }
 
 impl<FileId> Diagnostic<FileId> {
@@ -127,6 +136,7 @@ impl<FileId> Diagnostic<FileId> {
             message: String::new(),
             labels: Vec::new(),
             notes: Vec::new(),
+            suggestions: Vec::new(),
         }
     }
 
@@ -186,6 +196,14 @@ impl<FileId> Diagnostic<FileId> {
     /// Add some notes to the diagnostic.
     pub fn with_notes(mut self, mut notes: Vec<String>) -> Diagnostic<FileId> {
         self.notes.append(&mut notes);
+        self
+    }
+
+    pub fn with_suggestions(
+        mut self,
+        mut suggestions: Vec<Suggestion<FileId>>,
+    ) -> Diagnostic<FileId> {
+        self.suggestions.append(&mut suggestions);
         self
     }
 }
