@@ -1165,7 +1165,7 @@ mod suggestion_remove {
                     fn foo(n: i32) {}
 
                     fn main() {
-                        foo(&3);
+                        foo(&123);
                     }"#,
                 ),
             );
@@ -1175,7 +1175,7 @@ mod suggestion_remove {
                     .with_message("mismatched types")
                     .with_code("E0308")
                     .with_labels(vec![
-                        Label::primary(file_id, 39..41).with_message("expected `i32`, found `&{integer}`")
+                        Label::primary(file_id, 39..43).with_message("expected `i32`, found `&{integer}`")
                     ])
                     .with_suggestions(vec![
                         Suggestion {

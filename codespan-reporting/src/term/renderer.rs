@@ -669,8 +669,22 @@ impl<'writer, 'config> Renderer<'writer, 'config> {
         Ok(())
     }
 
-    //  fnentity f() -> bool {
-    //  --++++++ Consider making the function an entity
+    /// Suggestions for changes.
+    ///
+    /// ```text
+    /// foo(&123);
+    ///     + consider borrowing here
+    /// ```
+    ///
+    /// ```text
+    /// foo(&123);
+    ///     - consider removing the borrow
+    /// ```
+    ///
+    /// ```text
+    /// fn _foo(_: &Vec<u32>&[u32]) {}
+    ///            ---------++++++ help: change this to: `&[u32]`
+    /// ```
     pub fn render_suggestion(
         &mut self,
         outer_padding: usize,
