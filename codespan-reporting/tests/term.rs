@@ -1,4 +1,4 @@
-use codespan_reporting::diagnostic::{Diagnostic, Label};
+use codespan_reporting::diagnostic::{Diagnostic, Label, Suggestion};
 use codespan_reporting::files::{SimpleFile, SimpleFiles};
 use codespan_reporting::term::{termcolor::Color, Chars, Config, DisplayStyle, Styles};
 
@@ -1098,6 +1098,49 @@ mod surrounding_lines {
                     .with_labels(vec![
                         Label::primary(file_id, 79..79).with_message("Missing a semicolon"),
                     ]),
+            ];
+
+            TestData { files, diagnostics }
+        };
+    }
+
+    test_emit!(rich_no_color);
+}
+
+mod suggestion_remove {
+    use super::*;
+
+    lazy_static::lazy_static! {
+        static ref TEST_DATA: TestData<'static, SimpleFiles<&'static str, String>> = {
+            let mut files = SimpleFiles::new();
+
+            let file_id = files.add(
+                "suggestionRemove.fun",
+                unindent::unindent(
+                    r#"
+                    fn foo(n: i32) {}
+
+                    fn main() {
+                        foo(&3);
+                    }"#,
+                ),
+            );
+
+            let diagnostics = vec![
+                Diagnostic::error()
+                    .with_message("mismatched types")
+                    .with_code("E0308")
+                    .with_labels(vec![
+                        Label::primary(file_id, 39..41).with_message("expected `i32`, found `&{integer}`")
+                    ])
+                    .with_suggestions(vec![
+                        Suggestion {
+                            file_id,
+                            range: 39..40,
+                            replacement: format!(""),
+                            message: format!("consider removing the borrow"),
+                        },
+                    ])
             ];
 
             TestData { files, diagnostics }
