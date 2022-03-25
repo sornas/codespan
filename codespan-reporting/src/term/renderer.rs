@@ -669,6 +669,132 @@ impl<'writer, 'config> Renderer<'writer, 'config> {
         Ok(())
     }
 
+    /// Suggestions for changes.
+    ///
+    /// ```text
+    /// foo(&123);
+    ///     + consider borrowing here
+    /// ```
+    ///
+    /// ```text
+    /// foo(&123);
+    ///     - consider removing the borrow
+    /// ```
+    ///
+    /// ```text
+    /// fn _foo(_: &Vec<u32>&[u32]) {}
+    ///            ---------++++++ help: change this to: `&[u32]`
+    /// ```
+    pub fn render_suggestion(
+        &mut self,
+        outer_padding: usize,
+        lines: Range<usize>,
+        source: &str,
+        replace: (Range<usize>, &str),
+        message: &str,
+    ) -> Result<(), Error> {
+        assert!(lines.start == lines.end);
+
+        // Trim trailing newlines, linefeeds, and null chars from source, if they exist.
+        let source = source.trim_end_matches(['\n', '\r', '\0'].as_ref());
+
+        self.outer_gutter(outer_padding)?;
+        self.border_left()?;
+        writeln!(self)?;
+
+        self.outer_gutter_number(lines.start, outer_padding)?;
+        self.border_left()?;
+        write!(self, " ")?;
+
+        self.render_using_metrics(source.get(..replace.0.start).ok_or(
+            Error::InvalidCharBoundary {
+                given: replace.0.start,
+            },
+        )?)?;
+
+        self.set_color(&self.styles().suggest_remove)?;
+        self.render_using_metrics(source.get(replace.0.clone()).ok_or_else(|| {
+            let faulty = if source.get(replace.0.start..).is_none() {
+                replace.0.start
+            } else {
+                replace.0.end
+            };
+            Error::InvalidCharBoundary { given: faulty }
+        })?)?;
+
+        self.set_color(&self.styles().suggest_add)?;
+        self.render_using_metrics(replace.1)?;
+
+        self.reset()?;
+        self.render_using_metrics(source.get(replace.0.end..).ok_or(
+            Error::InvalidCharBoundary {
+                given: replace.0.end,
+            },
+        )?)?;
+        writeln!(self)?;
+
+        self.outer_gutter(outer_padding)?;
+        self.border_left()?;
+        write!(self, " ")?;
+
+        for (metrics, ch) in self.char_metrics(
+            source
+                .get(..replace.0.start)
+                .ok_or(Error::InvalidCharBoundary {
+                    given: replace.0.start,
+                })?
+                .char_indices(),
+        ) {
+            match ch {
+                '\t' => (0..metrics.unicode_width).try_for_each(|_| write!(self, " "))?,
+                _ => write!(self, " ")?,
+            }
+        }
+
+        self.set_color(&self.styles().suggest_remove)?;
+        for (metrics, ch) in self.char_metrics(
+            source
+                .get(replace.0.clone())
+                .ok_or_else(|| {
+                    let faulty = if source.get(replace.0.start..).is_none() {
+                        replace.0.start
+                    } else {
+                        replace.0.end
+                    };
+                    Error::InvalidCharBoundary { given: faulty }
+                })?
+                .char_indices(),
+        ) {
+            match ch {
+                '\t' => (0..metrics.unicode_width).try_for_each(|_| write!(self, "-"))?,
+                _ => write!(self, "-")?,
+            }
+        }
+
+        self.set_color(&self.styles().suggest_add)?;
+        for (metrics, ch) in self.char_metrics(replace.1.char_indices()) {
+            match ch {
+                '\t' => (0..metrics.unicode_width).try_for_each(|_| write!(self, "+"))?,
+                _ => write!(self, "+")?,
+            }
+        }
+
+        let message_color = {
+            if replace.0.start == replace.0.end {
+                &self.styles().suggest_add
+            } else if replace.1.is_empty() {
+                &self.styles().suggest_remove
+            } else {
+                &self.styles().suggest_replace
+            }
+        };
+        self.set_color(message_color)?;
+        writeln!(self, " {}", message)?;
+        self.reset()?;
+
+        Ok(())
+    }
+
     /// Adds tab-stop aware unicode-width computations to an iterator over
     /// character indices. Assumes that the character indices begin at the start
     /// of the line.
