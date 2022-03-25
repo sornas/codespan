@@ -1107,6 +1107,50 @@ mod surrounding_lines {
     test_emit!(rich_no_color);
 }
 
+mod suggestion_add {
+    use super::*;
+
+    lazy_static::lazy_static! {
+        static ref TEST_DATA: TestData<'static, SimpleFiles<&'static str, String>> = {
+            let mut files = SimpleFiles::new();
+
+            let file_id = files.add(
+                "suggestionAdd.fun",
+                unindent::unindent(
+                    r#"
+                    fn foo(_: &i32) {}
+
+                    fn main() {
+                        foo(123);
+                    }"#,
+                ),
+            );
+
+            let diagnostics = vec![
+                Diagnostic::error()
+                    .with_message("mismatched types")
+                    .with_code("E0308")
+                    .with_labels(vec![
+                        Label::primary(file_id, 40..43).with_message("expected `&i32`, found `{integer}`")
+                    ])
+                    .with_suggestions(vec![
+                        Suggestion {
+                            file_id,
+                            range: 40..40,
+                            replacement: format!("&"),
+                            message: format!("consider borrowing here"),
+                        },
+                    ])
+            ];
+
+            TestData { files, diagnostics }
+        };
+    }
+
+    test_emit!(rich_no_color);
+    test_emit!(rich_color);
+}
+
 mod suggestion_remove {
     use super::*;
 
