@@ -684,6 +684,10 @@ impl<'writer, 'config> Renderer<'writer, 'config> {
         // Trim trailing newlines, linefeeds, and null chars from source, if they exist.
         let source = source.trim_end_matches(['\n', '\r', '\0'].as_ref());
 
+        self.outer_gutter(outer_padding)?;
+        self.border_left()?;
+        writeln!(self)?;
+
         self.outer_gutter_number(lines.start, outer_padding)?;
         self.border_left()?;
         write!(self, " ")?;

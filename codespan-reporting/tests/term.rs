@@ -1148,4 +1148,46 @@ mod suggestion_remove {
     }
 
     test_emit!(rich_no_color);
+    test_emit!(rich_color);
+}
+
+mod suggestion_replace {
+    use super::*;
+
+    lazy_static::lazy_static! {
+        static ref TEST_DATA: TestData<'static, SimpleFiles<&'static str, String>> = {
+            let mut files = SimpleFiles::new();
+
+            let file_id = files.add(
+                "suggestionReplace.fun",
+                unindent::unindent(
+                    r#"
+                    fn _foo(_: &Vec<u32>) {}
+
+                    fn main() {}"#,
+                ),
+            );
+
+            let diagnostics = vec![
+                Diagnostic::warning()
+                    .with_message("writing `&Vec<_>` instead of `&[_]` involves one more reference and cannot be used with non-Vec-based slices")
+                    .with_labels(vec![
+                        Label::primary(file_id, 11..20).with_message("this type")
+                    ])
+                    .with_suggestions(vec![
+                        Suggestion {
+                            file_id,
+                            range: 11..20,
+                            replacement: format!("&[u32]"),
+                            message: format!("help: change this to: `&[u32]`"),
+                        },
+                    ])
+            ];
+
+            TestData { files, diagnostics }
+        };
+    }
+
+    test_emit!(rich_no_color);
+    test_emit!(rich_color);
 }

@@ -7,6 +7,7 @@ error[E0308]: mismatched types
   │
 4 │     foo(&3);
   │         ^^ expected `i32`, found `&{integer}`
+  │
 4 │     foo(&3);
   │         - consider removing the borrow
 
