@@ -659,6 +659,16 @@ impl<'writer, 'config> Renderer<'writer, 'config> {
         Ok(())
     }
 
+    fn render_using_metrics(&mut self, s: &str) -> Result<(), Error> {
+        for (metrics, ch) in self.char_metrics(s.char_indices()) {
+            match ch {
+                '\t' => (0..metrics.unicode_width).try_for_each(|_| write!(self, " "))?,
+                _ => write!(self, "{}", ch)?,
+            }
+        }
+        Ok(())
+    }
+
     /// Adds tab-stop aware unicode-width computations to an iterator over
     /// character indices. Assumes that the character indices begin at the start
     /// of the line.
